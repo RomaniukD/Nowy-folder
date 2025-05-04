@@ -1,0 +1,137 @@
+From 8df2046ee625d067100a8494cfec6a7e1ffcaa86 Mon Sep 17 00:00:00 2001
+From: RomaniukD <131466505+RomaniukD@users.noreply.github.com>
+Date: Mon, 5 May 2025 00:31:08 +0300
+Subject: [PATCH] All Done
+
+---
+ src/App.vue  | 45 ++++++++++++++++++++++++++++++++++++---------
+ src/utils.ts | 31 ++++++++++++++++++++++++++++---
+ 2 files changed, 64 insertions(+), 12 deletions(-)
+
+diff --git a/src/App.vue b/src/App.vue
+index 2ed7007..edcbccb 100644
+--- a/src/App.vue
++++ b/src/App.vue
+@@ -6,11 +6,20 @@
+ 
+   <template v-if="view === 'xml'">
+     <h2>XML</h2>
++    <button @click="updateXml">Generate XML</button>
+     <pre> {{ xml }} </pre>
+   </template>
+ 
+   <template v-else>
+     <h2>Grouped table</h2>
++
++  <fieldset>
++    <legend>Group by:</legend>
++      <label><input type="radio" value="category" v-model="groupBy" /> category</label>
++      <label><input type="radio" value="currency" v-model="groupBy" /> currency</label>
++      <label><input type="radio" value="account" v-model="groupBy" /> account</label>
++  </fieldset>
++
+     <table>
+       <thead>
+         <tr class="header">
+@@ -76,19 +85,27 @@ type Data = {
+ 
+ const data = useExampleData<Data>();
+ 
+-// TODO: TASK → avoid recomputing while user is still typing
+-const xml = computed(() => toXml(data.value ?? []));
++// TODO: TASK → avoid recomputing while user is still typing ---Done
++const xml = ref("");
++const updateXml = () => {
++  xml.value = toXml(data.value ?? []);
++}
++
++// TODO: TASK → let the user also group by currency and account ---Done
++const groupBy = ref<keyof Data>('category');
+ 
+-// TODO: TASK → let the user also group by currency and account
+ const groupedData = computed(() =>
+-  data.value //
+-    ? dataGroup(data.value, "category")
++  data.value 
++    ? dataGroup(data.value, groupBy.value)
+     : [],
+ );
++
+ const headers = computed(() =>
+-  Object.keys(data.value?.[0] ?? {}).filter((i) => i !== "category"),
++  Object.keys(data.value?.[0] ?? {}).filter(key => key !== groupBy.value),
+ );
+ 
++
++
+ const hidden = reactive(new Set<string>());
+ function groupToggle(groupKey: string) {
+   hidden.has(groupKey) //
+@@ -96,11 +113,21 @@ function groupToggle(groupKey: string) {
+     : hidden.add(groupKey);
+ }
+ 
+-// TODO: TASK → handle different currencies. Use `plnToCurrency` function to get the rates
+-function totalGet(items: { amount: string | number; currency: string }[]) {
+-  return items.reduce((acc, curr) => acc + Number(curr.amount), 0);
++// TODO: TASK → handle different currencies. Use `plnToCurrency` function to get the rates ---Done
++async function totalGet(items: { amount: string | number; currency: string }[]) {
++  let total = 0;
++
++  for (const item of items) {
++    const rate = await plnToCurrency(item.currency.toLowerCase());
++    const amount = Number(item.amount);
++
++    total += amount / rate;
++  }
++
++  return total.toFixed(2); 
+ }
+ 
++
+ // @ts-ignore
+ async function plnToCurrency(curr: string) {
+   if (curr === "pln") return 1;
+diff --git a/src/utils.ts b/src/utils.ts
+index b1f5ae7..e13f5c0 100644
+--- a/src/utils.ts
++++ b/src/utils.ts
+@@ -56,7 +56,32 @@ function csvToArray<T extends Record<string, any>>(input: string) {
+   }) as T[];
+ }
+ 
+-// TODO: TASK → implement exporting to XML
+-export function toXml(input: Record<string, any>[]) {
+-  return input.reduce((acc, curr) => `${acc}\n${JSON.stringify(curr)}`, "");
++// TODO: TASK → implement exporting to XML ---Done
++export function toXml(input: Record<string, any>[]): string {
++  const escapeXml = (unsafe: string) =>
++    unsafe.replace(/[<>&'"]/g, (c) => {
++      switch (c) {
++        case "<": return "&lt;";
++        case ">": return "&gt;";
++        case "&": return "&amp;";
++        case "'": return "&apos;";
++        case '"': return "&quot;";
++        default: return c;
++      }
++    });
++
++  const convertObjectToXml = (obj: Record<string, any>, index: number): string => {
++    const fields = Object.entries(obj)
++      .map(([key, value]) => {
++        const escapedValue = escapeXml(String(value));
++        return `  <${key}>${escapedValue}</${key}>`;
++      })
++      .join("\n");
++
++    return `<item index="${index}">\n${fields}\n</item>`;
++  };
++
++  const xmlItems = input.map((item, index) => convertObjectToXml(item, index)).join("\n");
++
++  return `<?xml version="1.0" encoding="UTF-8"?>\n<items>\n${xmlItems}\n</items>`;
+ }
+-- 
+2.47.0.windows.1
+
