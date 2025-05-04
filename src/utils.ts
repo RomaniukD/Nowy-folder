@@ -56,7 +56,32 @@ function csvToArray<T extends Record<string, any>>(input: string) {
   }) as T[];
 }
 
-// TODO: TASK → implement exporting to XML
-export function toXml(input: Record<string, any>[]) {
-  return input.reduce((acc, curr) => `${acc}\n${JSON.stringify(curr)}`, "");
+// TODO: TASK → implement exporting to XML ---Done
+export function toXml(input: Record<string, any>[]): string {
+  const escapeXml = (unsafe: string) =>
+    unsafe.replace(/[<>&'"]/g, (c) => {
+      switch (c) {
+        case "<": return "&lt;";
+        case ">": return "&gt;";
+        case "&": return "&amp;";
+        case "'": return "&apos;";
+        case '"': return "&quot;";
+        default: return c;
+      }
+    });
+
+  const convertObjectToXml = (obj: Record<string, any>, index: number): string => {
+    const fields = Object.entries(obj)
+      .map(([key, value]) => {
+        const escapedValue = escapeXml(String(value));
+        return `  <${key}>${escapedValue}</${key}>`;
+      })
+      .join("\n");
+
+    return `<item index="${index}">\n${fields}\n</item>`;
+  };
+
+  const xmlItems = input.map((item, index) => convertObjectToXml(item, index)).join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<items>\n${xmlItems}\n</items>`;
 }

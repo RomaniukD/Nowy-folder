@@ -6,11 +6,20 @@
 
   <template v-if="view === 'xml'">
     <h2>XML</h2>
+    <button @click="updateXml">Generate XML</button>
     <pre> {{ xml }} </pre>
   </template>
 
   <template v-else>
     <h2>Grouped table</h2>
+
+  <fieldset>
+    <legend>Group by:</legend>
+      <label><input type="radio" value="category" v-model="groupBy" /> category</label>
+      <label><input type="radio" value="currency" v-model="groupBy" /> currency</label>
+      <label><input type="radio" value="account" v-model="groupBy" /> account</label>
+  </fieldset>
+
     <table>
       <thead>
         <tr class="header">
@@ -76,18 +85,26 @@ type Data = {
 
 const data = useExampleData<Data>();
 
-// TODO: TASK → avoid recomputing while user is still typing
-const xml = computed(() => toXml(data.value ?? []));
+// TODO: TASK → avoid recomputing while user is still typing ---Done
+const xml = ref("");
+const updateXml = () => {
+  xml.value = toXml(data.value ?? []);
+}
 
-// TODO: TASK → let the user also group by currency and account
+// TODO: TASK → let the user also group by currency and account ---Done
+const groupBy = ref<keyof Data>('category');
+
 const groupedData = computed(() =>
-  data.value //
-    ? dataGroup(data.value, "category")
+  data.value 
+    ? dataGroup(data.value, groupBy.value)
     : [],
 );
+
 const headers = computed(() =>
-  Object.keys(data.value?.[0] ?? {}).filter((i) => i !== "category"),
+  Object.keys(data.value?.[0] ?? {}).filter(key => key !== groupBy.value),
 );
+
+
 
 const hidden = reactive(new Set<string>());
 function groupToggle(groupKey: string) {
@@ -96,10 +113,20 @@ function groupToggle(groupKey: string) {
     : hidden.add(groupKey);
 }
 
-// TODO: TASK → handle different currencies. Use `plnToCurrency` function to get the rates
-function totalGet(items: { amount: string | number; currency: string }[]) {
-  return items.reduce((acc, curr) => acc + Number(curr.amount), 0);
+// TODO: TASK → handle different currencies. Use `plnToCurrency` function to get the rates ---Done
+async function totalGet(items: { amount: string | number; currency: string }[]) {
+  let total = 0;
+
+  for (const item of items) {
+    const rate = await plnToCurrency(item.currency.toLowerCase());
+    const amount = Number(item.amount);
+
+    total += amount / rate;
+  }
+
+  return total.toFixed(2); 
 }
+
 
 // @ts-ignore
 async function plnToCurrency(curr: string) {
